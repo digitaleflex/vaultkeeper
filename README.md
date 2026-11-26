@@ -383,13 +383,21 @@ Ouvrez ensuite l'adresse affichée par Vite en ajoutant le fragment `#token=…`
 
 ### Publier une version
 
-Créez une release depuis l'onglet *Releases* de GitHub (nouveau tag `vX.Y.Z` sur `main`), ou :
+La publication est **automatique** : modifiez le numéro dans le fichier [`VERSION`](VERSION)
+(par exemple `0.1.0` → `0.2.0`), puis poussez sur `main`.
 
-```bash
-git tag v0.2.0 && git push origin v0.2.0
-```
+Si les tests passent sous Windows, macOS et Linux, la CI crée la release `v0.2.0`, y attache
+les 10 paquets et `SHA256SUMS`, puis l'équipe n'a plus qu'à lancer `vk update`.
 
-La CI construit et attache automatiquement les 10 paquets et le fichier `SHA256SUMS`.
+Un push sur `main` sans changement de `VERSION` ne publie rien.
+
+Règle de numérotation :
+
+| Changement | Exemple |
+|---|---|
+| correction | `0.1.0` → `0.1.1` |
+| nouvelle fonctionnalité | `0.1.1` → `0.2.0` |
+| changement incompatible | `0.9.0` → `1.0.0` |
 
 ---
 

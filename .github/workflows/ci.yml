@@ -6,67 +6,58 @@ on:
     tags: ["v*"]
   pull_request:
   release:
-    types: [published]
-
-permissions:
-  contents: read
-
-jobs:
-  web:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - run: npm ci
-        working-directory: web
-      - run: npm run build
-        working-directory: web
-
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - run: go vet ./...
-      - run: go test ./...
-
-  release:
-    # se déclenche sur un tag v* poussé, ou sur une release publiée depuis GitHub
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Publication automatique :
+    #  - push sur main : si la version du fichier VERSION n'a pas encore de release, on la crée
+    #  - tag v* poussé ou release créée à la main : on (re)construit et attache les paquets
+    if: github.event_name != 'pull_request'
     needs: [web, test]
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    concurrency:
-      group: release-${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Version à publier
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="$GITHUB_REF_NAME"; MODE=tag
+          else
+            TAG="v$(tr -d '[:space:]' < VERSION)"; MODE=main
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version invalide : $TAG (attendu vX.Y.Z)"; exit 1
+          fi
+          SKIP=false
+          if [[ $MODE == main ]] && gh release view "$TAG" >/dev/null 2>&1; then
+            echo "La release $TAG existe déjà : rien à publier."; SKIP=true
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "skip=$SKIP" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-go@v5
+        if: steps.v.outputs.skip == 'false'
         with:
           go-version-file: go.mod
       - uses: actions/setup-node@v4
+        if: steps.v.outputs.skip == 'false'
         with:
           node-version: 22
       - name: Interface web
+        if: steps.v.outputs.skip == 'false'
         run: cd web && npm ci && npm run build
       - name: Paquets (zip, tar.gz, deb)
-        run: scripts/package.sh "${{ github.ref_name }}"
+        if: steps.v.outputs.skip == 'false'
+        run: scripts/package.sh "${{ steps.v.outputs.tag }}"
       - name: Publication
+        if: steps.v.outputs.skip == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.v.outputs.tag }}
         run: |
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "VaultKeeper $TAG" --generate-notes
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "VaultKeeper $TAG" --generate-notes
           gh release upload "$TAG" dist/* --clobber
+          echo "### ✅ Release $TAG publiée" >> "$GITHUB_STEP_SUMMARY"
