@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VaultKeeper — {{.Host}}</title>
+<style>
+  :root { --bg:#f7f7f8; --card:#fff; --fg:#1d1d1f; --muted:#6b6b76; --border:#e3e3e8;
+          --s4:#9b2fae; --s3:#d03a2f; --s2:#c77700; --s1:#2f6fd0; --s0:#8a8a94; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#141416; --card:#1d1d21; --fg:#ececf0; --muted:#9a9aa6; --border:#2e2e35; }
+  }
+  * { box-sizing:border-box }
+  body { margin:0; font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--fg) }
+  main { max-width:1000px; margin:0 auto; padding:24px 16px 64px }
+  h1 { font-size:24px; margin:0 0 4px }
+  .meta { color:var(--muted); margin-bottom:20px }
+  .stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px }
+  .stat { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 14px; min-width:110px }
+  .stat b { display:block; font-size:22px }
+  .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px }
+  .filters input { flex:1; min-width:200px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--fg) }
+  .card { background:var(--card); border:1px solid var(--border); border-left:4px solid var(--s0); border-radius:10px; padding:12px 14px; margin-bottom:10px }
+  .sev4{border-left-color:var(--s4)} .sev3{border-left-color:var(--s3)} .sev2{border-left-color:var(--s2)} .sev1{border-left-color:var(--s1)}
+  .badge { font-size:12px; padding:2px 8px; border-radius:99px; border:1px solid var(--border); color:var(--muted); margin-left:6px }
+  .path { font-family:ui-monospace,Consolas,monospace; font-size:13px; color:var(--muted); word-break:break-all }
+  ul { margin:6px 0 0; padding-left:18px } li { word-break:break-all }
+  .warn { color:var(--s3); font-size:14px; margin-top:6px }
+  details summary { cursor:pointer; color:var(--muted); font-size:13px; margin-top:6px }
+</style>
+</head>
+<body><main>
+<h1>🔐 Inventaire des secrets</h1>
+<div class="meta">{{.Host}} · {{.OS}} · {{.User}} · {{.ScannedAt.Format "02/01/2006 15:04 UTC"}} — aucune valeur secrète n'est incluse dans ce rapport.</div>
+<div class="stats">
+  <div class="stat"><b>{{len .Findings}}</b>éléments</div>
+  <div class="stat" style="color:var(--s4)"><b>{{count "critique"}}</b>critiques</div>
+  <div class="stat" style="color:var(--s3)"><b>{{count "élevé"}}</b>élevés</div>
+  <div class="stat" style="color:var(--s2)"><b>{{count "moyen"}}</b>moyens</div>
+</div>
+<div class="filters"><input id="q" placeholder="Filtrer (serveur, projet, type…)" oninput="filter()"></div>
+{{range .Findings}}
+<div class="card {{sevClass .Severity}}" data-text="{{.Type}} {{.Path}} {{.Description}} {{range .Targets}}{{.}} {{end}}">
+  <div><b>{{.Type}}</b><span class="badge">{{.Severity}}</span><span class="badge">{{.Category}}</span></div>
+  <div class="path">{{.Path}}</div>
+  {{if .Description}}<div>{{.Description}}</div>{{end}}
+  {{if .Fingerprint}}<div class="path">{{.Fingerprint}}</div>{{end}}
+  {{if .Targets}}<ul>{{range .Targets}}<li>{{.}}</li>{{end}}</ul>{{end}}
+  {{if .Keys}}<details><summary>{{len .Keys}} nom(s) de variables / profils</summary><ul>{{range .Keys}}<li>{{.}}</li>{{end}}</ul></details>{{end}}
+  {{range .Warnings}}<div class="warn">⚠ {{.}}</div>{{end}}
+</div>
+{{end}}
+<script>
+function filter(){const q=document.getElementById('q').value.toLowerCase();
+document.querySelectorAll('.card').forEach(c=>{c.style.display=c.dataset.text.toLowerCase().includes(q)?'':'none'})}
+</script>
+</main></body></html>

@@ -1,0 +1,85 @@
+# VaultKeeper — coffres-forts auto-hébergés
+#
+# Tous les services écoutent UNIQUEMENT sur 127.0.0.1.
+# L'accès se fait via Tailscale (`tailscale serve`), qui fournit le HTTPS
+# avec un certificat valide sur https://<machine>.<tailnet>.ts.net
+# => aucun port n'est exposé sur Internet.
+#
+# Voir infra/INSTALL.md pour la procédure complète.
+
+name: vaultkeeper
+
+services:
+  # ---------------------------------------------------------------- Vaultwarden
+  # Mots de passe, accès serveurs, clés SSH, notes sécurisées.
+  # Compatible avec toutes les applis Bitwarden (web, desktop, mobile, CLI).
+  vaultwarden:
+    image: vaultwarden/server:${VAULTWARDEN_VERSION:?définir VAULTWARDEN_VERSION dans .env}
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${VAULTWARDEN_URL}
+      SIGNUPS_ALLOWED: "false"          # personne ne peut créer de compte seul
+      INVITATIONS_ALLOWED: "true"       # on invite l'équipe depuis /admin
+      SHOW_PASSWORD_HINT: "false"
+      ADMIN_TOKEN: ${VAULTWARDEN_ADMIN_TOKEN}
+      PASSWORD_ITERATIONS: "600000"
+      LOG_LEVEL: warn
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    volumes:
+      - ./data/vaultwarden:/data
+    ports:
+      - "127.0.0.1:8081:80"
+
+  # ------------------------------------------------------------------ Infisical
+  # Variables d'environnement par projet / environnement, partagées en équipe.
+  infisical:
+    image: infisical/infisical:${INFISICAL_VERSION:?définir INFISICAL_VERSION dans .env}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      SITE_URL: ${INFISICAL_URL}
+      ENCRYPTION_KEY: ${INFISICAL_ENCRYPTION_KEY}
+      AUTH_SECRET: ${INFISICAL_AUTH_SECRET}
+      DB_CONNECTION_URI: postgres://infisical:${POSTGRES_PASSWORD}@postgres:5432/infisical
+      REDIS_URL: redis://redis:6379
+      TELEMETRY_ENABLED: "false"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: VaultKeeper
+    ports:
+      - "127.0.0.1:8082:8080"
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: infisical
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: infisical
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U infisical"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+    volumes:
+      - ./data/redis:/data

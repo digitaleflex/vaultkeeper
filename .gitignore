@@ -1,0 +1,16 @@
+# binaires
+/dist/
+/vk
+*.exe
+
+# rapports d'analyse (révèlent l'emplacement des secrets)
+vk-report*.json
+vk-report*.html
+
+# secrets d'infra
+infra/.env
+infra/data/
+
+.DS_Store
+.idea/
+.vscode/
