@@ -88,6 +88,20 @@ Vérifiez l'intégrité du téléchargement avec `SHA256SUMS`.
 
 Sans argument, `vk` ouvre directement l'interface graphique.
 
+### Mettre à jour
+
+```bash
+vk update --check     # vérifie si une nouvelle version existe
+vk update             # télécharge, vérifie la somme SHA-256 et remplace vk
+sudo vk update        # si installé via .deb (/usr/bin/vk)
+```
+
+L'interface graphique affiche aussi un bandeau quand une nouvelle version est disponible.
+
+Tant que le dépôt est **privé**, `vk update` a besoin d'un accès GitHub en lecture : soit
+`gh auth login` (la CLI GitHub), soit la variable `GH_TOKEN` (jeton *fine-grained* avec
+*Contents : Read-only* sur ce dépôt). Un dépôt public n'a besoin de rien.
+
 ### Publier une nouvelle version
 
 ```bash

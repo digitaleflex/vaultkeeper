@@ -1,12 +1,12 @@
-import { Download, LayoutDashboard, List, Lock, Moon, Radar, RefreshCw, Sun, Upload } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowUpCircle, Download, LayoutDashboard, List, Lock, Moon, Radar, RefreshCw, Sun, Upload, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, initToken } from "./api";
 import { Dashboard } from "./components/Dashboard";
 import { FindingDrawer } from "./components/FindingDrawer";
 import { Inventory, type Filters } from "./components/Inventory";
 import { ScanPanel } from "./components/ScanPanel";
 import { Button } from "./components/ui";
-import type { Finding, Info, Report } from "./types";
+import type { Finding, Info, Report, UpdateInfo } from "./types";
 
 type View = "dashboard" | "inventory" | "scan";
 
@@ -57,6 +57,13 @@ export default function App() {
   const [open, setOpen] = useState<Finding | null>(null);
   const [filters, setFilters] = useState<Filters>({ q: "", category: "", severity: "" });
   const [selected, setSelected] = useState<Set<string>>(loadSelection);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
+
+  // revenir en haut à chaque changement de vue
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [view]);
 
   useEffect(() => {
     try {
@@ -79,6 +86,7 @@ export default function App() {
           setView("dashboard");
         }
       })
+      .then(() => api.update().then(setUpdate).catch(() => {}))
       .catch((e) =>
         setFatal(e instanceof ApiError && e.status === 401 ? "Jeton expiré : relancez `vk ui` dans votre terminal." : "Impossible de joindre vk. Est-il toujours lancé ?"),
       );
@@ -183,7 +191,24 @@ export default function App() {
       </aside>
 
       {/* contenu */}
-      <main className="min-w-0 flex-1 overflow-y-auto">
+      <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto">
+        {update?.available && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm text-indigo-900 md:px-8 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
+            <ArrowUpCircle className="size-4 shrink-0" />
+            <span>
+              <b>VaultKeeper {update.latest}</b> est disponible (vous avez {update.current}). Fermez cette fenêtre et lancez{" "}
+              <code className="rounded bg-indigo-100 px-1.5 py-0.5 font-mono text-[13px] dark:bg-indigo-500/20">vk update</code>
+            </span>
+            {update.url && (
+              <a href={update.url} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2">
+                Nouveautés
+              </a>
+            )}
+            <button onClick={() => setUpdate(null)} aria-label="Masquer" className="ml-auto rounded p-1 hover:bg-indigo-100 dark:hover:bg-indigo-500/20">
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
         {view !== "scan" && report && (
           <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-zinc-200 bg-zinc-50/85 px-4 py-3 backdrop-blur md:px-8 dark:border-zinc-800 dark:bg-zinc-950/85">
             <h1 className="mr-auto text-lg font-semibold">{view === "dashboard" ? "Tableau de bord" : "Inventaire"}</h1>

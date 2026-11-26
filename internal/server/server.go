@@ -10,6 +10,7 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/digitaleflex/vaultkeeper/internal/scanner"
+	"github.com/digitaleflex/vaultkeeper/internal/updater"
 )
 
 type Server struct {
@@ -37,6 +39,19 @@ type Server struct {
 	last   *scanner.Report
 	busy   bool
 	scanFn func(scanner.Options) (*scanner.Report, error)
+
+	// vérification de mise à jour (mise en cache pour la session)
+	updOnce   sync.Once
+	updResult updateInfo
+	checkFn   func() updateInfo
+}
+
+type updateInfo struct {
+	Current   string `json:"current"`
+	Latest    string `json:"latest,omitempty"`
+	Available bool   `json:"available"`
+	URL       string `json:"url,omitempty"`
+	Error     string `json:"error,omitempty"`
 }
 
 // New crée un serveur ; static est le dossier "dist" de l'application web.
@@ -68,6 +83,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/info", s.auth(s.handleInfo))
 	mux.HandleFunc("GET /api/report", s.auth(s.handleReport))
 	mux.HandleFunc("POST /api/scan", s.auth(s.handleScan))
+	mux.HandleFunc("GET /api/update", s.auth(s.handleUpdate))
 	mux.Handle("/", s.spa())
 	return s.guard(mux)
 }
@@ -122,6 +138,32 @@ func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusOK, info{Version: s.Version, Host: host, OS: osName(), Home: home, Suggestions: sugg})
+}
+
+func (s *Server) handleUpdate(w http.ResponseWriter, r *http.Request) {
+	s.updOnce.Do(func() {
+		if s.checkFn != nil {
+			s.updResult = s.checkFn()
+			return
+		}
+		s.updResult = checkUpdate(s.Version)
+	})
+	writeJSON(w, http.StatusOK, s.updResult)
+}
+
+func checkUpdate(current string) updateInfo {
+	res := updateInfo{Current: current}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	rel, err := updater.New().Latest(ctx)
+	if err != nil {
+		res.Error = err.Error()
+		return res
+	}
+	res.Latest = strings.TrimPrefix(rel.Tag, "v")
+	res.URL = rel.HTMLURL
+	res.Available = updater.Newer(rel.Tag, current)
+	return res
 }
 
 func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {

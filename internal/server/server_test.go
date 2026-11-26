@@ -20,6 +20,7 @@ func newTestServer(t *testing.T) *Server {
 	s.scanFn = func(o scanner.Options) (*scanner.Report, error) {
 		return &scanner.Report{Host: "pc", Findings: []scanner.Finding{{ID: "a", Type: "Clé SSH"}}}, nil
 	}
+	s.checkFn = func() updateInfo { return updateInfo{Current: "test", Latest: "9.9.9", Available: true} }
 	return s
 }
 
@@ -79,5 +80,13 @@ func TestSPAFallback(t *testing.T) {
 	rec := do(s, "GET", "/inventaire", "127.0.0.1:4242", "", "")
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "app") {
 		t.Fatalf("repli SPA : %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateEndpoint(t *testing.T) {
+	s := newTestServer(t)
+	rec := do(s, "GET", "/api/update", "127.0.0.1:4242", s.Token, "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"available":true`) {
+		t.Fatalf("update : %d %s", rec.Code, rec.Body.String())
 	}
 }

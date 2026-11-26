@@ -1,4 +1,4 @@
-import type { Info, Report } from "./types";
+import type { Info, Report, UpdateInfo } from "./types";
 
 const KEY = "vk-token";
 
@@ -51,6 +51,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T 
 
 export const api = {
   info: () => call<Info>("GET", "/api/info"),
+  update: () => call<UpdateInfo>("GET", "/api/update"),
   report: () => call<Report>("GET", "/api/report"),
   scan: (paths: string[], depth: number, skipHistory: boolean) =>
     call<Report>("POST", "/api/scan", { paths, depth, skipHistory }),

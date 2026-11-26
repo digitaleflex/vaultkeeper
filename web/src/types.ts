@@ -32,6 +32,14 @@ export interface Info {
   suggestions: string[] | null;
 }
 
+export interface UpdateInfo {
+  current: string;
+  latest?: string;
+  available: boolean;
+  url?: string;
+  error?: string;
+}
+
 export const SEVERITIES: Severity[] = ["critique", "élevé", "moyen", "faible", "info"];
 
 export const SEVERITY_RANK: Record<Severity, number> = {

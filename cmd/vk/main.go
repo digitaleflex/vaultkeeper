@@ -2,14 +2,18 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/digitaleflex/vaultkeeper/internal/report"
 	"github.com/digitaleflex/vaultkeeper/internal/scanner"
 	"github.com/digitaleflex/vaultkeeper/internal/server"
+	"github.com/digitaleflex/vaultkeeper/internal/updater"
 	"github.com/digitaleflex/vaultkeeper/web"
 )
 
@@ -20,6 +24,8 @@ const usage = `VaultKeeper — gestion sécurisée des secrets DevOps
 Usage :
   vk ui [options]       Ouvre l'interface graphique dans le navigateur
   vk scan [options]     Analyse ce poste et liste les secrets trouvés
+  vk update             Met à jour vk vers la dernière version
+  vk update --check     Vérifie seulement si une mise à jour existe
   vk version            Affiche la version
 
 Options de ui :
@@ -44,6 +50,7 @@ func (m *multiFlag) String() string     { return strings.Join(*m, ",") }
 func (m *multiFlag) Set(v string) error { *m = append(*m, v); return nil }
 
 func main() {
+	updater.CleanupOld()
 	// sans argument (ex. double-clic sur vk.exe) : on ouvre l'interface graphique
 	if len(os.Args) < 2 {
 		os.Exit(runUI(nil))
@@ -53,6 +60,8 @@ func main() {
 		os.Exit(runUI(os.Args[2:]))
 	case "scan":
 		os.Exit(runScan(os.Args[2:]))
+	case "update", "upgrade":
+		os.Exit(runUpdate(os.Args[2:]))
 	case "version", "--version":
 		fmt.Println("vk", version)
 	case "help", "-h", "--help":
@@ -140,5 +149,60 @@ func runUI(args []string) int {
 		fmt.Fprintln(os.Stderr, "erreur :", err)
 		return 1
 	}
+	return 0
+}
+
+func runUpdate(args []string) int {
+	fs := flag.NewFlagSet("update", flag.ContinueOnError)
+	fs.Usage = func() { fmt.Print(usage) }
+	check := fs.Bool("check", false, "")
+	force := fs.Bool("force", false, "")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	c := updater.New()
+	fmt.Println("Version installée :", version)
+	rel, err := c.Latest(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "erreur :", err)
+		return 1
+	}
+	fmt.Println("Dernière version  :", strings.TrimPrefix(rel.Tag, "v"))
+	if !updater.Newer(rel.Tag, version) && !*force {
+		fmt.Println("✔ vk est à jour.")
+		return 0
+	}
+	if *check {
+		fmt.Println("→ Mise à jour disponible : lancez `vk update`.")
+		fmt.Println("  Notes de version :", rel.HTMLURL)
+		return 0
+	}
+
+	exe, err := os.Executable()
+	if err == nil {
+		exe, err = filepath.EvalSymlinks(exe)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "erreur :", err)
+		return 1
+	}
+	fmt.Println("Téléchargement de", c.AssetName(rel.Tag), "…")
+	bin, err := c.Download(ctx, rel)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "erreur :", err)
+		return 1
+	}
+	fmt.Println("✔ Somme SHA-256 vérifiée")
+	if err := updater.Replace(exe, bin); err != nil {
+		fmt.Fprintln(os.Stderr, "erreur :", err)
+		if strings.HasPrefix(exe, "/usr/") {
+			fmt.Fprintln(os.Stderr, "  Installé via .deb : `sudo vk update`, ou téléchargez le nouveau .deb puis `sudo apt install ./vk_X.Y.Z_amd64.deb`.")
+		}
+		return 1
+	}
+	fmt.Printf("✔ vk mis à jour en %s (%s)\n", strings.TrimPrefix(rel.Tag, "v"), exe)
 	return 0
 }
