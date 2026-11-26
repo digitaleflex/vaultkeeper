@@ -14,14 +14,8 @@ test:
 	go vet ./...
 	go test ./...
 
-release: clean web
-	GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o $(DIST)/vk-windows-amd64.exe ./cmd/vk
-	GOOS=windows GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o $(DIST)/vk-windows-arm64.exe ./cmd/vk
-	GOOS=darwin  GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o $(DIST)/vk-macos-arm64 ./cmd/vk
-	GOOS=darwin  GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o $(DIST)/vk-macos-amd64 ./cmd/vk
-	GOOS=linux   GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o $(DIST)/vk-linux-amd64 ./cmd/vk
-	GOOS=linux   GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o $(DIST)/vk-linux-arm64 ./cmd/vk
-	cd $(DIST) && sha256sum vk-* > SHA256SUMS
+release: web
+	scripts/package.sh $(VERSION)
 
 clean:
 	rm -rf $(DIST)

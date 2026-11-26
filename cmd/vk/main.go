@@ -44,9 +44,9 @@ func (m *multiFlag) String() string     { return strings.Join(*m, ",") }
 func (m *multiFlag) Set(v string) error { *m = append(*m, v); return nil }
 
 func main() {
+	// sans argument (ex. double-clic sur vk.exe) : on ouvre l'interface graphique
 	if len(os.Args) < 2 {
-		fmt.Print(usage)
-		os.Exit(2)
+		os.Exit(runUI(nil))
 	}
 	switch os.Args[1] {
 	case "ui":

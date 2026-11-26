@@ -72,17 +72,31 @@ Niveaux de gravité : `critique` › `élevé` › `moyen` › `faible` › `inf
 
 ## Installation
 
-Téléchargez le binaire de votre système dans les [Releases](https://github.com/digitaleflex/vaultkeeper/releases), ou :
+Téléchargez le fichier de votre système dans les **[Releases](https://github.com/digitaleflex/vaultkeeper/releases/latest)** :
+
+| Système | Fichier | Lancement |
+|---|---|---|
+| **Windows** (PC classique) | `vk_X.Y.Z_windows_amd64.zip` | Décompressez, puis **double-cliquez sur `vk.exe`**. SmartScreen : *Informations complémentaires → Exécuter quand même* |
+| Windows ARM (Surface…) | `vk_X.Y.Z_windows_arm64.zip` | idem |
+| **macOS** Apple Silicon (M1–M4) | `vk_X.Y.Z_macos_arm64.zip` | `xattr -d com.apple.quarantine ./vk && ./vk ui` |
+| macOS Intel | `vk_X.Y.Z_macos_amd64.zip` | idem |
+| **Ubuntu / Debian** | `vk_X.Y.Z_amd64.deb` | `sudo apt install ./vk_X.Y.Z_amd64.deb` puis `vk ui` |
+| Autres Linux | `vk_X.Y.Z_linux_amd64.tar.gz` | `tar xzf …` puis `./vk ui` |
+
+Les binaires ne sont pas encore signés numériquement, d'où les avertissements de Windows et de macOS.
+Vérifiez l'intégrité du téléchargement avec `SHA256SUMS`.
+
+Sans argument, `vk` ouvre directement l'interface graphique.
+
+### Publier une nouvelle version
 
 ```bash
-go install github.com/digitaleflex/vaultkeeper/cmd/vk@latest
+git tag v0.2.0 && git push origin v0.2.0
 ```
 
-Pour compiler les 6 binaires (Windows, macOS et Linux, en amd64 et arm64) :
-
-```bash
-make release
-```
+Vous pouvez aussi créer une release depuis l'onglet *Releases* de GitHub. Dans les deux cas, la CI construit
+et attache automatiquement les 10 paquets et le fichier `SHA256SUMS`.
+Pour construire localement : `make release VERSION=v0.2.0`, les fichiers arrivent dans `dist/`.
 
 ## Déployer les coffres sur un VPS
 

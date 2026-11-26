@@ -5,6 +5,8 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -39,11 +41,14 @@ jobs:
       - run: go test ./...
 
   release:
+    # se déclenche sur un tag v* poussé, ou sur une release publiée depuis GitHub
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [web, test]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    concurrency:
+      group: release-${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,7 +59,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: make release VERSION=${{ github.ref_name }}
-      - env:
+      - name: Interface web
+        run: cd web && npm ci && npm run build
+      - name: Paquets (zip, tar.gz, deb)
+        run: scripts/package.sh "${{ github.ref_name }}"
+      - name: Publication
+        env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" dist/* --generate-notes
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "VaultKeeper $TAG" --generate-notes
+          gh release upload "$TAG" dist/* --clobber
