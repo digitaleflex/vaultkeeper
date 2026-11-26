@@ -9,6 +9,8 @@ import (
 
 	"github.com/digitaleflex/vaultkeeper/internal/report"
 	"github.com/digitaleflex/vaultkeeper/internal/scanner"
+	"github.com/digitaleflex/vaultkeeper/internal/server"
+	"github.com/digitaleflex/vaultkeeper/web"
 )
 
 var version = "dev"
@@ -16,8 +18,13 @@ var version = "dev"
 const usage = `VaultKeeper — gestion sécurisée des secrets DevOps
 
 Usage :
+  vk ui [options]       Ouvre l'interface graphique dans le navigateur
   vk scan [options]     Analyse ce poste et liste les secrets trouvés
   vk version            Affiche la version
+
+Options de ui :
+  --port N              Port local (défaut : aléatoire)
+  --no-open             N'ouvre pas le navigateur automatiquement
 
 Options de scan :
   -p, --path DIR        Dossier de projets à analyser pour les .env (répétable, défaut : dossier utilisateur)
@@ -42,6 +49,8 @@ func main() {
 		os.Exit(2)
 	}
 	switch os.Args[1] {
+	case "ui":
+		os.Exit(runUI(os.Args[2:]))
 	case "scan":
 		os.Exit(runScan(os.Args[2:]))
 	case "version", "--version":
@@ -98,4 +107,38 @@ func runScan(args []string) int {
 func isTerminal() bool {
 	st, err := os.Stdout.Stat()
 	return err == nil && st.Mode()&os.ModeCharDevice != 0
+}
+
+func runUI(args []string) int {
+	fs := flag.NewFlagSet("ui", flag.ContinueOnError)
+	fs.Usage = func() { fmt.Print(usage) }
+	port := fs.Int("port", 0, "")
+	noOpen := fs.Bool("no-open", false, "")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	srv, err := server.New(version, web.Dist())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "erreur :", err)
+		return 1
+	}
+	ln, url, err := srv.Listen(*port)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "erreur :", err)
+		return 1
+	}
+	fmt.Println("🔐 VaultKeeper — interface graphique")
+	fmt.Println("   Adresse (privée, ne la partagez pas) :")
+	fmt.Println("   " + url)
+	fmt.Println("   Ctrl+C pour arrêter.")
+	if !*noOpen {
+		if err := server.OpenBrowser(url); err != nil {
+			fmt.Println("   (ouvrez l'adresse ci-dessus dans votre navigateur)")
+		}
+	}
+	if err := srv.Serve(ln); err != nil {
+		fmt.Fprintln(os.Stderr, "erreur :", err)
+		return 1
+	}
+	return 0
 }

@@ -19,7 +19,7 @@ Fini les clés SSH qui ne vivent que sur un seul PC, et les `.env` envoyés par 
 
 | Composant | Rôle | Statut |
 |---|---|---|
-| `vk` (Go) | CLI multi-plateforme : analyse, import, injection des `.env` | 🟢 `scan` disponible |
+| `vk` (Go) | CLI multi-plateforme : analyse, import, injection des `.env` | 🟢 `scan` et `ui` disponibles |
 | [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | Coffre mots de passe et SSH, compatible avec les applis Bitwarden | 🟢 `infra/` |
 | [Infisical](https://infisical.com) | Gestion des variables d'environnement en équipe | 🟢 `infra/` |
 | Portail (Go + React) | Inventaire serveurs ↔ clés ↔ personnes, rotations | ⚪ phase 4 |
@@ -27,7 +27,28 @@ Fini les clés SSH qui ne vivent que sur un seul PC, et les `.env` envoyés par 
 **Principe de sécurité** : `vk` n'affiche ni n'écrit **jamais** une valeur secrète dans
 ses rapports, uniquement l'emplacement, le type, les serveurs associés et les noms de variables.
 
-## `vk scan`
+## Interface graphique : `vk ui`
+
+```bash
+vk ui
+```
+
+La commande ouvre l'interface dans votre navigateur : lancement de l'analyse, tableau de bord par gravité,
+inventaire filtrable, fiche détaillée de chaque secret (serveurs associés, empreinte, alertes),
+sélection des éléments à importer, export JSON, thème clair ou sombre, affichage sur mobile.
+
+Sécurité : serveur limité à `127.0.0.1`, jeton aléatoire à chaque lancement,
+protection contre le DNS rebinding, CSP stricte, aucune valeur secrète transmise.
+
+Développement de l'interface (Vite, React, Tailwind) :
+
+```bash
+vk ui --port 4321 --no-open     # terminal 1 : l'API
+cd web && npm run dev           # terminal 2 : rechargement à chaud
+make web                        # recompile web/dist, embarqué dans le binaire
+```
+
+## `vk scan` (ligne de commande)
 
 ```bash
 vk scan                              # analyse le dossier utilisateur
@@ -71,6 +92,7 @@ Voir **[infra/INSTALL.md](infra/INSTALL.md)**.
 
 - [x] **Phase 0** : infrastructure (Vaultwarden, Infisical, Tailscale, sauvegardes restic)
 - [x] **Phase 1** : `vk scan` multi-plateforme
+- [x] **Phase 1b** : interface graphique `vk ui` (React embarqué)
 - [ ] **Phase 2** : `vk import` (SSH et mots de passe vers Vaultwarden, `.env` vers Infisical) avec validation interactive
 - [ ] **Phase 3** : `vk env pull` / `vk env run`, intégration des nouveaux membres
 - [ ] **Phase 4** : portail web (inventaire, rotations, rapports de postes)
