@@ -88,6 +88,7 @@ func findByType(r *Report, prefix string) []Finding {
 func TestScanFullHome(t *testing.T) {
 	home := fakeHome(t)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("APPDATA", filepath.Join(home, ".config"))
 	r, err := Scan(Options{Home: home})
 	if err != nil {
 		t.Fatal(err)
@@ -141,6 +142,7 @@ func TestScanFullHome(t *testing.T) {
 func TestNoSecretValuesInReport(t *testing.T) {
 	home := fakeHome(t)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("APPDATA", filepath.Join(home, ".config"))
 	r, _ := Scan(Options{Home: home})
 	forbidden := []string{"hunter2", "S3cret", "sk_test_x", "xyz", "dXNlcjpwYXNz", "c2VjcmV0", "ghp_xxx", "abcd", "postgres://u:p"}
 	for _, f := range r.Findings {
